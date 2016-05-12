@@ -21,6 +21,10 @@ var buffer = require('vinyl-buffer');
 var debowerify = require('debowerify');
 var uglifyify = require('uglifyify');
 
+var eslint = require('gulp-eslint');
+var stylelint = require('gulp-stylelint');
+var plato = require('plato');
+
 var argv = require('minimist')(process.argv.slice(2), {
     string: 'env',
     default: {env: process.env.NODE_ENV || 'development'}
@@ -32,6 +36,7 @@ var conf = {
     icons: 'src/images/icons/*.png',
     html: 'src/*.html',
     js: 'src/js/main.js',
+    report: 'report',
     sprite: {
         imgName: 'images/build/sprite.png',
         cssName: 'less/build/sprite.less',
@@ -116,14 +121,44 @@ gulp.task('script', ['clean', 'bower'], function() {
 
 
 gulp.task('clean', function () {
-    return del([conf.build.folder, conf.build.tmpFolders]);
+    return del([conf.build.folder, conf.build.tmpFolders, conf.report]);
 });
 
-gulp.task('build', ['style', 'images', 'html', 'script']);
+gulp.task('build', ['style', 'images', 'html', 'script', 'lint']);
 
 gulp.task('watch', ['build'], function () {
     return gulp.watch(conf.less, ['style-watch']);
 });
+
+gulp.task('lint', ['clean', 'eslint','lint-less' ], function() {
+    return plato.inspect(conf.js, conf.report, {title: 'CDP-lint report'}, function() {
+        console.log('Report created');
+    });
+});
+
+gulp.task('eslint', function () {
+    return gulp.src(conf.js)
+      .pipe(eslint())
+      .pipe(eslint.format())
+      .pipe(eslint.failAfterError());
+});
+
+gulp.task('lint-less', function() {
+    return gulp.src(conf.less)
+      .pipe(stylelint({
+          reporters: [
+              {
+                  formatter: 'string',
+                  save: 'less-report.txt',
+                  console: true
+              }
+          ],
+          syntax: 'less'
+      }));
+});
+
+gulp.task('default', ['build', 'watch']);
+
 
 function errorHandler(error) {
     util.log(util.colors.red('Error'), error.message);
@@ -131,6 +166,4 @@ function errorHandler(error) {
     this.end();
 }
 
-gulp.task('default', ['build', 'watch']);
 
-/*first push for travis*/
